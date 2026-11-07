@@ -1,6 +1,7 @@
 package digital.vmstudio.myassistant.presentation.assistant
 
 import android.Manifest
+import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.DisposableEffect
@@ -40,6 +41,7 @@ import digital.vmstudio.myassistant.data.local.secure.ApiKeyStore
 import digital.vmstudio.myassistant.data.remote.OmniRouteChatMessage
 import digital.vmstudio.myassistant.data.remote.AssistantToolExecutor
 import digital.vmstudio.myassistant.data.remote.OmniRouteClient
+import digital.vmstudio.myassistant.reminders.ReminderScheduler
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -68,7 +70,20 @@ fun AssistantScreen() {
     val repository = app.assistantRepository
     val keyStore = remember { ApiKeyStore(context) }
     val client = remember { OmniRouteClient() }
-    val toolExecutor = remember { AssistantToolExecutor(repository) }
+    val toolExecutor = remember { AssistantToolExecutor(repository, reminderScheduler = ReminderScheduler(context)) }
+    var voiceReplies by remember { mutableStateOf(true) }
+    var ttsReady by remember { mutableStateOf(false) }
+    val textToSpeech = remember(context) {
+        TextToSpeech(context) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+        }
+    }
+    DisposableEffect(textToSpeech) {
+        onDispose {
+            textToSpeech.stop()
+            textToSpeech.shutdown()
+        }
+    }
     var draft by remember { mutableStateOf("") }
     var model by remember { mutableStateOf(OmniRouteClient.DEFAULT_MODEL) }
     var loading by remember { mutableStateOf(false) }
@@ -115,10 +130,15 @@ fun AssistantScreen() {
                 Text("OmniRoute · " + model, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            OutlinedButton(onClick = {
-                apiKey = runCatching { keyStore.read().orEmpty() }.getOrDefault("")
-                showSettings = true
-            }) { Text("Settings") }
+            Column {
+                OutlinedButton(onClick = { voiceReplies = !voiceReplies }) {
+                    Text(if (voiceReplies) "Voice on" else "Voice off")
+                }
+                OutlinedButton(onClick = {
+                    apiKey = runCatching { keyStore.read().orEmpty() }.getOrDefault("")
+                    showSettings = true
+                }) { Text("Settings") }
+            }
         }
 
         if (conversation.isEmpty()) {
@@ -154,6 +174,12 @@ fun AssistantScreen() {
                                 else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(line.content, Modifier.padding(14.dp))
+                        }
+                        if (!isUser) {
+                            TextButton(onClick = {
+                                textToSpeech.language = java.util.Locale.getDefault()
+                                textToSpeech.speak(line.content, TextToSpeech.QUEUE_FLUSH, null, "assistant_${line.hashCode()}")
+                            }, enabled = ttsReady) { Text("Speak") }
                         }
                     }
                 }
@@ -216,6 +242,10 @@ fun AssistantScreen() {
                             if (reply.text.isNotBlank()) {
                                 history.add(OmniRouteChatMessage("assistant", reply.text))
                                 conversation.add(ChatLine("assistant", reply.text))
+                                if (voiceReplies && ttsReady) {
+                                    textToSpeech.language = java.util.Locale.getDefault()
+                                    textToSpeech.speak(reply.text, TextToSpeech.QUEUE_FLUSH, null, "assistant_reply")
+                                }
                             }
                         } catch (e: Exception) {
                             error = e.message ?: "The assistant request failed."
