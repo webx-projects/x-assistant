@@ -23,9 +23,11 @@ DAOs expose reactive Kotlin Flow queries. Finance summaries are calculated over 
 
 ## OmniRoute gateway
 
-The Android client uses the configured gateway host `https://ai.vmstudio.digital`. The public OmniRoute OpenAI-compatible contract documents a `/v1` API root, Bearer-key authentication and `POST /v1/chat/completions` with `model`, `messages` and optional `stream` fields. Model identifiers are gateway-specific; the client currently defaults to `auto`, which must be supported by the deployed instance. The public protocol reference is not proof that this particular hosted instance is reachable or configured identically.
+The Android client uses the configured gateway host `https://ai.vmstudio.digital`. The public OmniRoute OpenAI-compatible contract documents a `/v1` API root, Bearer-key authentication and `POST /v1/chat/completions` with `model`, `messages`, `tools` and optional `stream` fields. Model identifiers and tool support are gateway/provider-specific. The client currently defaults to model ID `auto`; the deployed instance must support that alias or the user can enter another model ID in Assistant settings.
 
-The first client implementation sends non-streaming chat completions. It does not yet execute tool calls. Before production release, verify the deployed host's `GET /v1/models`, key permissions, rate limits, selected model capabilities and error behavior using a real user key. Do not assume every model supports tools or structured output.
+The first client sends non-streaming chat completions. The app supplies an explicit allowlist of typed tools: create task, create expense, create income, create reminder, create note, list open tasks and calculate a finance summary. The executor rejects unknown tool names and validates typed arguments before calling use cases/repository methods. It has no SQL, shell, reflection or arbitrary-code interface. The model must never be trusted for financial arithmetic; finance totals are read from Room. Tool calls are executed sequentially with a bounded number of tool rounds.
+
+Before production release, verify the deployed host's `GET /v1/models`, key permissions, rate limits, selected model tool capability and error behavior using a real user key. Provider support for tools and structured output is not uniform; if a selected model does not support tools, use a compatible model or disable tool mode.
 
 API keys are entered by the user and encrypted with an AES-GCM key held in Android Keystore; only ciphertext is stored in app-private preferences. Never commit API tokens, place them in BuildConfig, or embed a shared private credential in the APK. For multi-user production deployment, prefer a controlled backend proxy with per-user authorization and quotas.
 
@@ -36,7 +38,7 @@ Push-to-talk speech recognition and text-to-speech are not implemented yet. Hand
 ## Data safety
 
 - Typed tool calls only; no arbitrary SQL, shell or code execution from the model.
-- Confirm destructive actions before mutation.
+- Destructive actions require confirmation; destructive tools are not exposed yet.
 - Verify persisted state before reporting an action as complete.
 - Keep optional backup distinct from automatic two-way sync.
 - Do not log transcripts, credentials or financial details unnecessarily.
