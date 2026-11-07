@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 private enum class AssistantTab(val label: String, val symbol: String) {
-    HOME("Home", "⌂"), TASKS("Tasks", "✓"), FINANCE("Money", "₹"),
+    HOME("Home", "⌂"), ASSISTANT("AI", "✦"), TASKS("Tasks", "✓"), FINANCE("Money", "₹"),
     REMINDERS("Reminders", "◷"), NOTES("Notes", "▤")
 }
 
@@ -76,6 +76,7 @@ fun HomeScreen() {
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             when (tab) {
                 AssistantTab.HOME -> DashboardContent(tasks, transactions, reminders) { tab = it }
+                AssistantTab.ASSISTANT -> digital.vmstudio.myassistant.presentation.assistant.AssistantScreen()
                 AssistantTab.TASKS -> TaskList(tasks) { task ->
                     scope.launch {
                         repository.updateTask(task.copy(
@@ -230,6 +231,11 @@ private fun DashboardContent(
                         color = MaterialTheme.colorScheme.primary)
                     TextButton(onClick = { onOpen(AssistantTab.FINANCE) }) { Text("Open finance") }
                 }
+            }
+        }
+        item {
+            DashboardAction("Ask your AI assistant", "Chat through your OmniRoute gateway", Modifier.fillMaxWidth()) {
+                onOpen(AssistantTab.ASSISTANT)
             }
         }
         item { Text("Your workspace", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
