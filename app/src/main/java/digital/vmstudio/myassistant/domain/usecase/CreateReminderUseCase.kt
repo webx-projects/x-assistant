@@ -21,7 +21,7 @@ class CreateReminderUseCase(
         val normalizedRule = recurrenceRule?.trim()?.takeIf(String::isNotEmpty)
 
         val timestamp = now()
-        return AssistantReminder(
+        val reminder = AssistantReminder(
             id = newId(),
             title = normalizedTitle,
             description = description.trim(),
@@ -29,6 +29,8 @@ class CreateReminderUseCase(
             recurrenceRule = normalizedRule,
             createdAtMillis = timestamp,
             updatedAtMillis = timestamp
-        ).also(repository::addReminder)
+        )
+        repository.addReminder(reminder)
+        return reminder
     }
 }
