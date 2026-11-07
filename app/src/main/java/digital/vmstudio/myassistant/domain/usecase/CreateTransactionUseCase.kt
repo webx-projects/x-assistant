@@ -31,7 +31,7 @@ class CreateTransactionUseCase(
             "Currency must be a three-letter ISO code."
         }
 
-        return MoneyTransaction(
+        val transaction = MoneyTransaction(
             id = newId(),
             type = normalizedType,
             amountMinorUnits = amountMinorUnits,
@@ -41,6 +41,8 @@ class CreateTransactionUseCase(
             paymentMethod = paymentMethod?.trim()?.takeIf(String::isNotEmpty),
             occurredAtMillis = occurredAtMillis,
             createdAtMillis = now()
-        ).also(repository::addTransaction)
+        )
+        repository.addTransaction(transaction)
+        return transaction
     }
 }
