@@ -93,7 +93,11 @@ class AssistantToolExecutor(
         reminderScheduler?.schedule(reminder)
         return JSONObject()
             .put("ok", true)
-            .put("message", if (reminderScheduler != null) "Reminder saved and scheduled for an Android notification." else "Reminder saved; notification scheduling is not configured in this context.")
+            .put("message", when {
+                reminderScheduler == null -> "Reminder saved; notification scheduling is not configured in this context."
+                reminderScheduler.notificationsAllowed() -> "Reminder saved and an Android notification alarm was scheduled."
+                else -> "Reminder saved and its alarm was scheduled, but notifications are disabled. Enable My AI Assistant notifications in Android settings to see the alert."
+            })
             .put("reminder_id", reminder.id)
             .put("scheduled_at_epoch_millis", reminder.scheduledAtMillis)
             .toString()
