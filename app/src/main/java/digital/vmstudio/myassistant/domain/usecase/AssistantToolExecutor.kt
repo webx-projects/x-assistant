@@ -2,6 +2,7 @@ package digital.vmstudio.myassistant.domain.usecase
 
 import digital.vmstudio.myassistant.domain.repository.AssistantRepository
 import digital.vmstudio.myassistant.data.remote.OmniRouteToolCall
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
@@ -32,6 +33,8 @@ class AssistantToolExecutor(
                 "get_finance_summary" -> financeSummary(args)
                 else -> errorJson("Unsupported tool: " + call.name)
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             errorJson(e.message ?: "The requested action could not be completed.")
         }
