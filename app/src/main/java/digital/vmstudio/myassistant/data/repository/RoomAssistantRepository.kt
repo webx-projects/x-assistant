@@ -65,6 +65,9 @@ class RoomAssistantRepository(
     override suspend fun addTransaction(transaction: MoneyTransaction) =
         database.financialTransactionDao().insertTransaction(transaction.toEntity())
 
+    override suspend fun updateTransaction(transaction: MoneyTransaction) =
+        database.financialTransactionDao().updateTransaction(transaction.toEntity())
+
     override suspend fun deleteTransaction(id: String) =
         database.financialTransactionDao().deleteTransaction(id)
 
