@@ -11,3 +11,5 @@ local.properties
 *.keystore
 secrets.properties
 .env
+
+.kotlin/
