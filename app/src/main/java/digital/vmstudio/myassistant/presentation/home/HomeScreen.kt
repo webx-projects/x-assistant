@@ -24,7 +24,7 @@ import java.util.UUID
 
 private enum class AssistantTab(val label: String, val symbol: String) {
     HOME("Home", "⌂"), ASSISTANT("AI", "✦"), TASKS("Tasks", "✓"), FINANCE("Money", "₹"),
-    REMINDERS("Reminders", "◷"), NOTES("Notes", "▤")
+    MORE("More", "•••"), REMINDERS("Reminders", "◷"), NOTES("Notes", "▤")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,9 +53,9 @@ fun HomeScreen() {
         },
         bottomBar = {
             NavigationBar {
-                AssistantTab.entries.forEach { item ->
+                listOf(AssistantTab.HOME, AssistantTab.ASSISTANT, AssistantTab.TASKS, AssistantTab.FINANCE, AssistantTab.MORE).forEach { item ->
                     NavigationBarItem(
-                        selected = tab == item,
+                        selected = tab == item || (item == AssistantTab.MORE && (tab == AssistantTab.REMINDERS || tab == AssistantTab.NOTES)),
                         onClick = { tab = item; error = null },
                         icon = { Text(item.symbol) },
                         label = { Text(item.label) }
@@ -64,7 +64,7 @@ fun HomeScreen() {
             }
         },
         floatingActionButton = {
-            if (tab != AssistantTab.HOME) FloatingActionButton(
+            if (tab != AssistantTab.HOME && tab != AssistantTab.MORE) FloatingActionButton(
                 onClick = { dialog = tab; error = null }
             ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
         }
@@ -88,6 +88,7 @@ fun HomeScreen() {
                 AssistantTab.FINANCE -> FinanceList(transactions)
                 AssistantTab.REMINDERS -> ReminderList(reminders)
                 AssistantTab.NOTES -> NoteList(notes)
+                AssistantTab.MORE -> MoreContent { tab = it }
             }
         }
     }
@@ -258,6 +259,15 @@ private fun DashboardContent(
             }
         }
         item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun MoreContent(onOpen: (AssistantTab) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("More tools", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        DashboardAction("Reminders", "Manage upcoming reminders", Modifier.fillMaxWidth()) { onOpen(AssistantTab.REMINDERS) }
+        DashboardAction("Notes", "Browse your saved notes", Modifier.fillMaxWidth()) { onOpen(AssistantTab.NOTES) }
     }
 }
 
