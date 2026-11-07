@@ -93,7 +93,6 @@ object AssistantToolDefinitions {
                 .put("name", name)
                 .put("description", description)
                 .put("parameters", parameters)
-                .put("strict", true)
         )
 
     private fun objectSchema(
