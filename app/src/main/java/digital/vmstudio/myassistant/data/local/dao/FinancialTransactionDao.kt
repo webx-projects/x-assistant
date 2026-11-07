@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import digital.vmstudio.myassistant.data.local.entity.FinancialTransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -23,6 +24,9 @@ interface FinancialTransactionDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransaction(transaction: FinancialTransactionEntity)
+
+    @Update
+    suspend fun updateTransaction(transaction: FinancialTransactionEntity)
 
     @Query("DELETE FROM financial_transactions WHERE transactionId = :transactionId")
     suspend fun deleteTransaction(transactionId: String)
