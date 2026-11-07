@@ -24,7 +24,10 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # The legacy "tools" SDK package has been removed upstream.
+          packages: "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -32,4 +35,4 @@ jobs:
           gradle-version: "9.6.0"
 
       - name: Build debug APK and run unit tests
-        run: gradle assembleDebug testDebugUnitTest
+        run: gradle --no-daemon assembleDebug testDebugUnitTest
