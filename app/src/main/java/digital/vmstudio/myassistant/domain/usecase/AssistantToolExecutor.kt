@@ -1,7 +1,6 @@
 package digital.vmstudio.myassistant.domain.usecase
 
 import digital.vmstudio.myassistant.domain.repository.AssistantRepository
-import digital.vmstudio.myassistant.data.remote.OmniRouteToolCall
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
@@ -20,10 +19,10 @@ class AssistantToolExecutor(
     private val repository: AssistantRepository,
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) {
-    suspend fun execute(call: OmniRouteToolCall): String {
+    suspend fun execute(toolName: String, argumentsJson: String): String {
         return try {
-            val args = JSONObject(call.argumentsJson)
-            when (call.name) {
+            val args = JSONObject(argumentsJson)
+            when (toolName) {
                 "create_task" -> createTask(args)
                 "create_expense" -> createTransaction(args, "EXPENSE")
                 "create_income" -> createTransaction(args, "INCOME")
@@ -31,7 +30,7 @@ class AssistantToolExecutor(
                 "create_note" -> createNote(args)
                 "list_open_tasks" -> listOpenTasks()
                 "get_finance_summary" -> financeSummary(args)
-                else -> errorJson("Unsupported tool: " + call.name)
+                else -> errorJson("Unsupported tool: " + toolName)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
