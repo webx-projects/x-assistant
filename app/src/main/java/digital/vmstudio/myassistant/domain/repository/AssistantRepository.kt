@@ -1,5 +1,6 @@
 package digital.vmstudio.myassistant.domain.repository
 
+import digital.vmstudio.myassistant.domain.model.AssistantChatMessage
 import digital.vmstudio.myassistant.domain.model.AssistantNote
 import digital.vmstudio.myassistant.domain.model.AssistantReminder
 import digital.vmstudio.myassistant.domain.model.AssistantTask
@@ -31,6 +32,10 @@ interface AssistantRepository {
     suspend fun addReminder(reminder: AssistantReminder)
     suspend fun updateReminder(reminder: AssistantReminder)
     suspend fun deleteReminder(id: String)
+
+    fun observeChatMessages(): Flow<List<AssistantChatMessage>>
+    suspend fun addChatMessage(message: AssistantChatMessage)
+    suspend fun clearChatHistory()
 
     fun observeNotes(): Flow<List<AssistantNote>>
     fun searchNotes(query: String): Flow<List<AssistantNote>>
