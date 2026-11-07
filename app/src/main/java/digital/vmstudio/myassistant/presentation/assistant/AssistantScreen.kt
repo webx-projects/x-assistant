@@ -34,8 +34,8 @@ import androidx.compose.ui.unit.dp
 import digital.vmstudio.myassistant.AssistantApplication
 import digital.vmstudio.myassistant.data.local.secure.ApiKeyStore
 import digital.vmstudio.myassistant.data.remote.OmniRouteChatMessage
+import digital.vmstudio.myassistant.data.remote.AssistantToolExecutor
 import digital.vmstudio.myassistant.data.remote.OmniRouteClient
-import digital.vmstudio.myassistant.domain.usecase.AssistantToolExecutor
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneId
