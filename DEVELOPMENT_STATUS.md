@@ -16,6 +16,7 @@
 - Foreground push-to-talk speech recognition using Android SpeechRecognizer, with runtime microphone permission and partial transcription.
 - API key encrypted with Android Keystore; app-private preferences store ciphertext only.
 - Strict app-owned tool allowlist and typed executor for task, expense, income, reminder, note, open-task listing and finance-summary operations.
+- Assistant executes tool calls through application use cases; unknown tool names and invalid arguments are rejected, and tool rounds are bounded.
 - Tool execution is sequential, bounded to three rounds per user turn, and has no arbitrary SQL/code execution.
 - Internet permission declared.
 - Android CI workflow configured to install platform-tools and build debug APK plus unit tests.
