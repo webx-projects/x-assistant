@@ -33,7 +33,7 @@ API keys are entered by the user and encrypted with an AES-GCM key held in Andro
 
 ## Voice and Android restrictions
 
-Push-to-talk speech recognition and text-to-speech are not implemented yet. Hands-free activation is a later capability gated by Android-supported assistant/hotword APIs and device support. Background microphone use must remain user-visible and comply with foreground-service and permission rules. No hidden recording, root requirement or AccessibilityService workaround.
+Foreground push-to-talk speech recognition is implemented with Android SpeechRecognizer and a runtime microphone permission request. Audio is not continuously captured or sent to OmniRoute by this feature. Text-to-speech is not implemented yet. Hands-free activation is a later capability gated by Android-supported assistant/hotword APIs and device support. Background microphone use must remain user-visible and comply with foreground-service and permission rules. No hidden recording, root requirement or AccessibilityService workaround.
 
 ## Data safety
 
