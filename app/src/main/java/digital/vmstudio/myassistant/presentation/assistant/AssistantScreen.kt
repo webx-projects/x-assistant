@@ -170,7 +170,7 @@ fun AssistantScreen() {
                                     toolCallsJson = reply.rawToolCallsJson
                                 ))
                                 reply.toolCalls.forEach { call ->
-                                    val result = toolExecutor.execute(call)
+                                    val result = toolExecutor.execute(call.name, call.argumentsJson)
                                     history.add(OmniRouteChatMessage(
                                         role = "tool",
                                         content = result,
