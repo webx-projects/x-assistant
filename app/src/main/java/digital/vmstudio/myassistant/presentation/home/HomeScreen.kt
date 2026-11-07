@@ -1,5 +1,10 @@
 package digital.vmstudio.myassistant.presentation.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -14,6 +20,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import digital.vmstudio.myassistant.AssistantApplication
 import digital.vmstudio.myassistant.domain.model.*
+import digital.vmstudio.myassistant.reminders.ReminderScheduler
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -33,6 +40,9 @@ fun HomeScreen() {
     val context = LocalContext.current
     val repository = (context.applicationContext as AssistantApplication).assistantRepository
     val scope = rememberCoroutineScope()
+    val reminderScheduler = remember(context) { ReminderScheduler(context) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var notificationPermissionRequested by remember { mutableStateOf(false) }
     val tasks by repository.observeTasks().collectAsState(initial = emptyList())
     val transactions by repository.observeTransactions().collectAsState(initial = emptyList())
     val reminders by repository.observeReminders().collectAsState(initial = emptyList())
@@ -40,6 +50,15 @@ fun HomeScreen() {
     var tab by remember { mutableStateOf(AssistantTab.HOME) }
     var dialog by remember { mutableStateOf<AssistantTab?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(tab) {
+        if (tab == AssistantTab.REMINDERS && !notificationPermissionRequested && Build.VERSION.SDK_INT >= 33) {
+            notificationPermissionRequested = true
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -149,11 +168,13 @@ fun HomeScreen() {
                     val scheduled = local.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                     require(scheduled > System.currentTimeMillis()) { "Choose a future date and time." }
                     val now = System.currentTimeMillis()
-                    repository.addReminder(AssistantReminder(
+                    val reminder = AssistantReminder(
                         id = UUID.randomUUID().toString(), title = title,
                         description = values[2].trim(), scheduledAtMillis = scheduled,
                         createdAtMillis = now, updatedAtMillis = now
-                    ))
+                    )
+                    repository.addReminder(reminder)
+                    reminderScheduler.schedule(reminder)
                 } catch (e: Exception) { error = e.message ?: "Could not save reminder." }
                 dialog = null
             }
