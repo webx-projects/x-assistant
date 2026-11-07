@@ -21,13 +21,15 @@ class CreateNoteUseCase(
         }
 
         val timestamp = now()
-        return AssistantNote(
+        val note = AssistantNote(
             id = newId(),
             title = normalizedTitle,
             content = normalizedContent,
             isPinned = isPinned,
             createdAtMillis = timestamp,
             updatedAtMillis = timestamp
-        ).also(repository::addNote)
+        )
+        repository.addNote(note)
+        return note
     }
 }
