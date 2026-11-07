@@ -37,6 +37,9 @@ import digital.vmstudio.myassistant.data.remote.OmniRouteChatMessage
 import digital.vmstudio.myassistant.data.remote.OmniRouteClient
 import digital.vmstudio.myassistant.domain.usecase.AssistantToolExecutor
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private data class ChatLine(val role: String, val content: String)
 
@@ -65,7 +68,13 @@ fun AssistantScreen() {
     val scope = rememberCoroutineScope()
     val conversation = remember { mutableStateListOf<ChatLine>() }
     val history = remember {
-        mutableStateListOf(OmniRouteChatMessage("system", ASSISTANT_SYSTEM_PROMPT.trimIndent()))
+        val zone = ZoneId.systemDefault()
+        val localNow = LocalDateTime.now(zone).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        mutableStateListOf(OmniRouteChatMessage(
+            "system",
+            ASSISTANT_SYSTEM_PROMPT.trimIndent() +
+                "\nCurrent device local date/time: " + localNow + " " + zone.id
+        ))
     }
     var draft by remember { mutableStateOf("") }
     var model by remember { mutableStateOf(OmniRouteClient.DEFAULT_MODEL) }
