@@ -13,6 +13,7 @@
 - Initial finance summary unit tests.
 - OmniRoute OpenAI-compatible non-streaming chat client.
 - Assistant conversation screen with API-key and model settings.
+- Foreground push-to-talk speech recognition using Android SpeechRecognizer, with runtime microphone permission and partial transcription.
 - API key encrypted with Android Keystore; app-private preferences store ciphertext only.
 - Strict app-owned tool allowlist and typed executor for task, expense, income, reminder, note, open-task listing and finance-summary operations.
 - Tool execution is sequential, bounded to three rounds per user turn, and has no arbitrary SQL/code execution.
@@ -27,7 +28,7 @@
 - Add update/delete flows with explicit confirmation for destructive actions.
 - Add date-range finance reports, categories and budgets.
 - Implement notification scheduling for reminders, exact-alarm permission handling and reboot/timezone recovery.
-- Implement push-to-talk speech recognition and text-to-speech.
+- Add text-to-speech, language controls and voice interaction tests.
 - Add typed action audit log and stronger user-visible action receipts.
 - Add secure optional backup, settings and release signing.
 
