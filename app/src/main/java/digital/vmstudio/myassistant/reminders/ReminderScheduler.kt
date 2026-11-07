@@ -1,10 +1,13 @@
 package digital.vmstudio.myassistant.reminders
 
+import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import digital.vmstudio.myassistant.domain.model.AssistantReminder
 
 /**
@@ -14,6 +17,10 @@ import digital.vmstudio.myassistant.domain.model.AssistantReminder
 class ReminderScheduler(context: Context) {
     private val appContext = context.applicationContext
     private val alarmManager = appContext.getSystemService(AlarmManager::class.java)
+
+    fun notificationsAllowed(): Boolean = Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
 
     fun schedule(reminder: AssistantReminder) {
         if (!reminder.isEnabled || reminder.scheduledAtMillis <= System.currentTimeMillis()) {
