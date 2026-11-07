@@ -23,7 +23,7 @@ class CreateTaskUseCase(
         }
 
         val timestamp = now()
-        return AssistantTask(
+        val task = AssistantTask(
             id = newId(),
             title = normalizedTitle,
             details = details.trim(),
@@ -31,6 +31,8 @@ class CreateTaskUseCase(
             dueAtMillis = dueAtMillis,
             createdAtMillis = timestamp,
             updatedAtMillis = timestamp
-        ).also(repository::addTask)
+        )
+        repository.addTask(task)
+        return task
     }
 }
