@@ -5,6 +5,7 @@ import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,10 +40,13 @@ import androidx.compose.ui.unit.dp
 import digital.vmstudio.myassistant.AssistantApplication
 import digital.vmstudio.myassistant.data.local.secure.ApiKeyStore
 import digital.vmstudio.myassistant.data.remote.OmniRouteChatMessage
+import digital.vmstudio.myassistant.domain.model.AssistantChatMessage
 import digital.vmstudio.myassistant.data.remote.AssistantToolExecutor
 import digital.vmstudio.myassistant.data.remote.OmniRouteClient
 import digital.vmstudio.myassistant.reminders.ReminderScheduler
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import java.util.UUID
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -89,6 +93,8 @@ fun AssistantScreen() {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var showClearConfirm by remember { mutableStateOf(false) }
+    var chatLoaded by remember { mutableStateOf(false) }
     var apiKey by remember { mutableStateOf("") }
 
     var listening by remember { mutableStateOf(false) }
@@ -111,14 +117,22 @@ fun AssistantScreen() {
     }
     val scope = rememberCoroutineScope()
     val conversation = remember { mutableStateListOf<ChatLine>() }
-    val history = remember {
+    val systemMessage = remember {
         val zone = ZoneId.systemDefault()
         val localNow = LocalDateTime.now(zone).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        mutableStateListOf(OmniRouteChatMessage(
+        OmniRouteChatMessage(
             "system",
             ASSISTANT_SYSTEM_PROMPT.trimIndent() +
                 "\nCurrent device local date/time: " + localNow + " " + zone.id
-        ))
+        )
+    }
+    val history = remember(systemMessage) { mutableStateListOf(systemMessage) }
+    LaunchedEffect(Unit) {
+        repository.observeChatMessages().first().forEach { saved ->
+            conversation.add(ChatLine(saved.role, saved.content))
+            history.add(OmniRouteChatMessage(saved.role, saved.content))
+        }
+        chatLoaded = true
     }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -131,6 +145,9 @@ fun AssistantScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column {
+                OutlinedButton(onClick = { showClearConfirm = true }, enabled = chatLoaded && conversation.isNotEmpty()) {
+                    Text("Clear chat")
+                }
                 OutlinedButton(onClick = { voiceReplies = !voiceReplies }) {
                     Text(if (voiceReplies) "Voice on" else "Voice off")
                 }
@@ -203,7 +220,7 @@ fun AssistantScreen() {
                 }
             ) { Text(if (listening) "Stop" else "Mic") }
             Button(
-                enabled = draft.isNotBlank() && !loading,
+                enabled = draft.isNotBlank() && !loading && chatLoaded,
                 onClick = {
                     val userText = draft.trim()
                     draft = ""
@@ -213,6 +230,10 @@ fun AssistantScreen() {
                     loading = true
                     scope.launch {
                         try {
+                            repository.addChatMessage(AssistantChatMessage(
+                                id = UUID.randomUUID().toString(), role = "user", content = userText,
+                                createdAtMillis = System.currentTimeMillis()
+                            ))
                             val key = keyStore.read()
                                 ?: throw IllegalStateException("Add your OmniRoute API key in Assistant settings.")
                             var reply = client.sendMessage(key, model, history.toList())
@@ -242,6 +263,10 @@ fun AssistantScreen() {
                             if (reply.text.isNotBlank()) {
                                 history.add(OmniRouteChatMessage("assistant", reply.text))
                                 conversation.add(ChatLine("assistant", reply.text))
+                                repository.addChatMessage(AssistantChatMessage(
+                                    id = UUID.randomUUID().toString(), role = "assistant", content = reply.text,
+                                    createdAtMillis = System.currentTimeMillis()
+                                ))
                                 if (voiceReplies && ttsReady) {
                                     textToSpeech.language = java.util.Locale.getDefault()
                                     textToSpeech.speak(reply.text, TextToSpeech.QUEUE_FLUSH, null, "assistant_reply")
@@ -259,6 +284,26 @@ fun AssistantScreen() {
                 else Text("Send")
             }
         }
+    }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear conversation?") },
+            text = { Text("This permanently deletes the locally saved chat history on this device.") },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch {
+                        repository.clearChatHistory()
+                        conversation.clear()
+                        history.clear()
+                        history.add(systemMessage)
+                        showClearConfirm = false
+                    }
+                }) { Text("Clear history") }
+            },
+            dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") } }
+        )
     }
 
     if (showSettings) {
