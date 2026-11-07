@@ -69,6 +69,13 @@ fun AssistantScreen() {
     val keyStore = remember { ApiKeyStore(context) }
     val client = remember { OmniRouteClient() }
     val toolExecutor = remember { AssistantToolExecutor(repository) }
+    var draft by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf(OmniRouteClient.DEFAULT_MODEL) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
+    var apiKey by remember { mutableStateOf("") }
+
     var listening by remember { mutableStateOf(false) }
     val speechController = remember(context) {
         SpeechInputController(
@@ -98,13 +105,6 @@ fun AssistantScreen() {
                 "\nCurrent device local date/time: " + localNow + " " + zone.id
         ))
     }
-    var draft by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf(OmniRouteClient.DEFAULT_MODEL) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var showSettings by remember { mutableStateOf(false) }
-    var apiKey by remember { mutableStateOf("") }
-
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
