@@ -1,10 +1,12 @@
 package digital.vmstudio.myassistant.data.repository
 
 import digital.vmstudio.myassistant.data.local.AppDatabase
+import digital.vmstudio.myassistant.data.local.entity.ChatMessageEntity
 import digital.vmstudio.myassistant.data.local.entity.FinancialTransactionEntity
 import digital.vmstudio.myassistant.data.local.entity.NoteEntity
 import digital.vmstudio.myassistant.data.local.entity.ReminderEntity
 import digital.vmstudio.myassistant.data.local.entity.TaskEntity
+import digital.vmstudio.myassistant.domain.model.AssistantChatMessage
 import digital.vmstudio.myassistant.domain.model.AssistantNote
 import digital.vmstudio.myassistant.domain.model.AssistantReminder
 import digital.vmstudio.myassistant.domain.model.AssistantTask
@@ -84,6 +86,14 @@ class RoomAssistantRepository(
 
     override suspend fun deleteReminder(id: String) =
         database.reminderDao().deleteReminder(id)
+
+    override fun observeChatMessages(): Flow<List<AssistantChatMessage>> =
+        database.chatMessageDao().observeMessages().map { rows -> rows.map(ChatMessageEntity::toDomain) }
+
+    override suspend fun addChatMessage(message: AssistantChatMessage) =
+        database.chatMessageDao().insertMessage(message.toEntity())
+
+    override suspend fun clearChatHistory() = database.chatMessageDao().deleteAllMessages()
 
     override fun observeNotes(): Flow<List<AssistantNote>> =
         database.noteDao().observeNotes().map { rows -> rows.map(NoteEntity::toDomain) }
@@ -188,4 +198,12 @@ private fun AssistantNote.toEntity() = NoteEntity(
     isPinned = isPinned,
     createdAtMillis = createdAtMillis,
     updatedAtMillis = updatedAtMillis
+)
+
+private fun ChatMessageEntity.toDomain() = AssistantChatMessage(
+    id = messageId, role = role, content = content, createdAtMillis = createdAtMillis
+)
+
+private fun AssistantChatMessage.toEntity() = ChatMessageEntity(
+    messageId = id, role = role, content = content, createdAtMillis = createdAtMillis
 )
