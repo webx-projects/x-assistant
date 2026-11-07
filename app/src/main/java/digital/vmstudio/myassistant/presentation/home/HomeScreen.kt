@@ -1,129 +1,415 @@
 package digital.vmstudio.myassistant.presentation.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import digital.vmstudio.myassistant.AssistantApplication
+import digital.vmstudio.myassistant.domain.model.*
+import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 
+private enum class AssistantTab(val label: String, val symbol: String) {
+    HOME("Home", "⌂"), TASKS("Tasks", "✓"), FINANCE("Money", "₹"),
+    REMINDERS("Reminders", "◷"), NOTES("Notes", "▤")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "MY AI ASSISTANT",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Good day.",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "What would you like to get done?",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+    val context = LocalContext.current
+    val repository = (context.applicationContext as AssistantApplication).assistantRepository
+    val scope = rememberCoroutineScope()
+    val tasks by repository.observeTasks().collectAsState(initial = emptyList())
+    val transactions by repository.observeTransactions().collectAsState(initial = emptyList())
+    val reminders by repository.observeReminders().collectAsState(initial = emptyList())
+    val notes by repository.observeNotes().collectAsState(initial = emptyList())
+    var tab by remember { mutableStateOf(AssistantTab.HOME) }
+    var dialog by remember { mutableStateOf<AssistantTab?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer
-            ) {
-                Column(
-                    modifier = Modifier.padding(22.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                            .padding(22.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("✦", style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text("Ask your assistant", style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Talk naturally in Hindi, English or Hinglish.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+    Scaffold(
+        topBar = {
+            TopAppBar(title = {
+                Column {
+                    Text("MY AI ASSISTANT", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(tab.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                }
+            })
+        },
+        bottomBar = {
+            NavigationBar {
+                AssistantTab.entries.forEach { item ->
+                    NavigationBarItem(
+                        selected = tab == item,
+                        onClick = { tab = item; error = null },
+                        icon = { Text(item.symbol) },
+                        label = { Text(item.label) }
                     )
-                    Spacer(Modifier.height(18.dp))
-                    Button(
-                        onClick = { /* Voice capture will be connected in the voice feature. */ },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Start talking")
-                    }
                 }
             }
-
-            Text("YOUR SPACE", style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard("Tasks", "Plan your day", Modifier.weight(1f))
-                QuickActionCard("Expenses", "Track spending", Modifier.weight(1f))
+        },
+        floatingActionButton = {
+            if (tab != AssistantTab.HOME) FloatingActionButton(
+                onClick = { dialog = tab; error = null }
+            ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            when (tab) {
+                AssistantTab.HOME -> DashboardContent(tasks, transactions, reminders) { tab = it }
+                AssistantTab.TASKS -> TaskList(tasks) { task ->
+                    scope.launch {
+                        repository.updateTask(task.copy(
+                            status = if (task.status == "COMPLETED") "OPEN" else "COMPLETED",
+                            updatedAtMillis = System.currentTimeMillis()
+                        ))
+                    }
+                }
+                AssistantTab.FINANCE -> FinanceList(transactions)
+                AssistantTab.REMINDERS -> ReminderList(reminders)
+                AssistantTab.NOTES -> NoteList(notes)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        }
+    }
+
+    when (dialog) {
+        AssistantTab.TASKS -> CreateDialog(
+            "New task", listOf("Task title", "Details (optional)"),
+            onDismiss = { dialog = null }
+        ) { values ->
+            scope.launch {
+                try {
+                    val title = values[0].trim()
+                    require(title.isNotEmpty()) { "Enter a task title." }
+                    val now = System.currentTimeMillis()
+                    repository.addTask(AssistantTask(
+                        UUID.randomUUID().toString(), title, values[1].trim(),
+                        createdAtMillis = now, updatedAtMillis = now
+                    ))
+                } catch (e: Exception) { error = e.message ?: "Could not save task." }
+                dialog = null
+            }
+        }
+        AssistantTab.FINANCE -> CreateDialog(
+            "Add transaction",
+            listOf("Amount in ₹", "Category", "Description (optional)", "Type: EXPENSE or INCOME"),
+            listOf("", "Other", "", "EXPENSE"),
+            onDismiss = { dialog = null }
+        ) { values ->
+            scope.launch {
+                try {
+                    val minor = BigDecimal(values[0].trim()).setScale(2, RoundingMode.UNNECESSARY)
+                        .movePointRight(2).longValueExact()
+                    require(minor > 0L) { "Enter an amount greater than zero." }
+                    val type = values[3].trim().uppercase()
+                    require(type == "EXPENSE" || type == "INCOME") { "Type must be EXPENSE or INCOME." }
+                    val now = System.currentTimeMillis()
+                    repository.addTransaction(MoneyTransaction(
+                        id = UUID.randomUUID().toString(), type = type, amountMinorUnits = minor,
+                        category = values[1].trim().ifEmpty { "Other" },
+                        description = values[2].trim(), occurredAtMillis = now, createdAtMillis = now
+                    ))
+                } catch (e: Exception) { error = e.message ?: "Could not save transaction." }
+                dialog = null
+            }
+        }
+        AssistantTab.REMINDERS -> CreateDialog(
+            "New reminder",
+            listOf("Reminder title", "Date & time (yyyy-MM-dd HH:mm)", "Details (optional)"),
+            listOf("", LocalDateTime.now().plusHours(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), ""),
+            onDismiss = { dialog = null }
+        ) { values ->
+            scope.launch {
+                try {
+                    val title = values[0].trim()
+                    require(title.isNotEmpty()) { "Enter a reminder title." }
+                    val local = LocalDateTime.parse(values[1].trim(),
+                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                    val scheduled = local.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    require(scheduled > System.currentTimeMillis()) { "Choose a future date and time." }
+                    val now = System.currentTimeMillis()
+                    repository.addReminder(AssistantReminder(
+                        id = UUID.randomUUID().toString(), title = title,
+                        description = values[2].trim(), scheduledAtMillis = scheduled,
+                        createdAtMillis = now, updatedAtMillis = now
+                    ))
+                } catch (e: Exception) { error = e.message ?: "Could not save reminder." }
+                dialog = null
+            }
+        }
+        AssistantTab.NOTES -> CreateDialog(
+            "New note", listOf("Title (optional)", "Write your note"),
+            onDismiss = { dialog = null }
+        ) { values ->
+            scope.launch {
+                try {
+                    require(values.any { it.isNotBlank() }) { "Write a title or note." }
+                    val now = System.currentTimeMillis()
+                    repository.addNote(AssistantNote(
+                        id = UUID.randomUUID().toString(), title = values[0].trim(),
+                        content = values[1].trim(), createdAtMillis = now, updatedAtMillis = now
+                    ))
+                } catch (e: Exception) { error = e.message ?: "Could not save note." }
+                dialog = null
+            }
+        }
+        else -> Unit
+    }
+}
+
+@Composable
+private fun DashboardContent(
+    tasks: List<AssistantTask>,
+    transactions: List<MoneyTransaction>,
+    reminders: List<AssistantReminder>,
+    onOpen: (AssistantTab) -> Unit
+) {
+    val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amountMinorUnits }
+    val expenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinorUnits }
+    val openTasks = tasks.count { it.status != "COMPLETED" && it.status != "ARCHIVED" }
+    val upcoming = reminders.filter { it.isEnabled && it.scheduledAtMillis >= System.currentTimeMillis() }
+        .sortedBy { it.scheduledAtMillis }.take(3)
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("Good day.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text("Your day, organised in one place.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
-                QuickActionCard("Reminders", "Never miss a thing", Modifier.weight(1f))
-                QuickActionCard("Notes", "Save your thoughts", Modifier.weight(1f))
+                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("✦", style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Your assistant is ready", style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Manage your tasks, money, reminders and notes here.",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Voice AI is the next development milestone.",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard("Open tasks", openTasks.toString(), Modifier.weight(1f))
+                MetricCard("Upcoming", upcoming.size.toString(), Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("All-time money overview", fontWeight = FontWeight.SemiBold)
+                    Text("Income  ₹" + formatMinor(income))
+                    Text("Expenses  ₹" + formatMinor(expenses))
+                    Text("Net  ₹" + formatMinor(income - expenses), fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = { onOpen(AssistantTab.FINANCE) }) { Text("Open finance") }
+                }
+            }
+        }
+        item { Text("Your workspace", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DashboardAction("Tasks", "Plan your day", Modifier.weight(1f)) { onOpen(AssistantTab.TASKS) }
+                DashboardAction("Money", "Track spending", Modifier.weight(1f)) { onOpen(AssistantTab.FINANCE) }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DashboardAction("Reminders", "Remember what matters", Modifier.weight(1f)) { onOpen(AssistantTab.REMINDERS) }
+                DashboardAction("Notes", "Capture thoughts", Modifier.weight(1f)) { onOpen(AssistantTab.NOTES) }
+            }
+        }
+        if (upcoming.isNotEmpty()) {
+            item { Text("Coming up", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            items(upcoming, key = { it.id }) { reminder ->
+                RecordCard(reminder.title, formatDateTime(reminder.scheduledAtMillis), "Reminder")
+            }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun TaskList(tasks: List<AssistantTask>, onToggle: (AssistantTask) -> Unit) {
+    if (tasks.isEmpty()) EmptyState("No tasks yet", "Tap + to add your first task.")
+    else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(tasks, key = { it.id }) { task ->
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(if (task.status == "COMPLETED") "✓" else "○",
+                        color = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(task.title, fontWeight = FontWeight.SemiBold)
+                        if (task.details.isNotBlank()) Text(task.details,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(task.priority + " · " + task.status,
+                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    TextButton(onClick = { onToggle(task) }) {
+                        Text(if (task.status == "COMPLETED") "Reopen" else "Done")
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun QuickActionCard(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+private fun FinanceList(transactions: List<MoneyTransaction>) {
+    if (transactions.isEmpty()) EmptyState("No transactions yet", "Tap + to record income or an expense.")
+    else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amountMinorUnits }
+            val expenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinorUnits }
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("All-time summary", fontWeight = FontWeight.SemiBold)
+                    Text("Income  ₹" + formatMinor(income))
+                    Text("Expenses  ₹" + formatMinor(expenses))
+                    Text("Net  ₹" + formatMinor(income - expenses), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        items(transactions, key = { it.id }) { transaction ->
+            val sign = if (transaction.type == "INCOME") "+" else "−"
+            RecordCard(transaction.category,
+                (transaction.description.ifBlank { transaction.type }) + " · " + formatDateTime(transaction.occurredAtMillis),
+                sign + "₹" + formatMinor(transaction.amountMinorUnits))
+        }
+    }
+}
+
+@Composable
+private fun ReminderList(reminders: List<AssistantReminder>) {
+    if (reminders.isEmpty()) EmptyState("No reminders yet", "Tap + to create a reminder.")
+    else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(reminders, key = { it.id }) { reminder ->
+            RecordCard(reminder.title, formatDateTime(reminder.scheduledAtMillis) + " · " + reminder.description,
+                if (reminder.isEnabled) "Active" else "Paused")
+        }
+    }
+}
+
+@Composable
+private fun NoteList(notes: List<AssistantNote>) {
+    if (notes.isEmpty()) EmptyState("No notes yet", "Tap + to save your first note.")
+    else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(notes, key = { it.id }) { note ->
+            RecordCard(note.title.ifBlank { "Untitled note" }, note.content,
+                if (note.isPinned) "Pinned" else "Note")
+        }
+    }
+}
+
+@Composable
+private fun CreateDialog(
+    title: String,
+    fields: List<String>,
+    initialValues: List<String> = emptyList(),
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit
+) {
+    val values = remember(title) {
+        fields.mapIndexed { index, _ -> initialValues.getOrNull(index).orEmpty() }.toMutableStateList()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                fields.forEachIndexed { index, label ->
+                    OutlinedTextField(
+                        value = values[index], onValueChange = { values[index] = it },
+                        label = { Text(label) }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = !label.contains("note", ignoreCase = true),
+                        keyboardOptions = if (label.contains("Amount", ignoreCase = true))
+                            KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default
+                    )
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { onSave(values.toList()) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(label, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun DashboardAction(title: String, subtitle: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(
+        onClick = onClick, modifier = modifier, shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
+@Composable
+private fun RecordCard(title: String, subtitle: String, trailing: String) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(trailing, style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(title: String, message: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 48.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun formatMinor(amount: Long): String =
+    BigDecimal.valueOf(amount, 2).setScale(2, RoundingMode.HALF_UP).toPlainString()
+
+private fun formatDateTime(timestamp: Long): String =
+    java.time.Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("dd MMM, hh:mm a"))
