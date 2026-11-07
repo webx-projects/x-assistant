@@ -14,6 +14,7 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import digital.vmstudio.myassistant.reminders.ReminderScheduler
 
 /**
  * Executes only the app-owned tool allowlist. Unknown names are rejected; the model
@@ -21,7 +22,8 @@ import java.time.ZoneId
  */
 class AssistantToolExecutor(
     private val repository: AssistantRepository,
-    private val zoneId: ZoneId = ZoneId.systemDefault()
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
+    private val reminderScheduler: ReminderScheduler? = null
 ) {
     suspend fun execute(toolName: String, argumentsJson: String): String {
         return try {
@@ -88,9 +90,10 @@ class AssistantToolExecutor(
             scheduledAtMillis = scheduledAt,
             description = args.optString("details")
         )
+        reminderScheduler?.schedule(reminder)
         return JSONObject()
             .put("ok", true)
-            .put("message", "Reminder saved. Notification scheduling will be added in the reminder service milestone.")
+            .put("message", if (reminderScheduler != null) "Reminder saved and scheduled for an Android notification." else "Reminder saved; notification scheduling is not configured in this context.")
             .put("reminder_id", reminder.id)
             .put("scheduled_at_epoch_millis", reminder.scheduledAtMillis)
             .toString()
