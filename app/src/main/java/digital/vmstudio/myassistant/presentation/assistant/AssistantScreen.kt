@@ -1,5 +1,9 @@
 package digital.vmstudio.myassistant.presentation.assistant
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +69,24 @@ fun AssistantScreen() {
     val keyStore = remember { ApiKeyStore(context) }
     val client = remember { OmniRouteClient() }
     val toolExecutor = remember { AssistantToolExecutor(repository) }
+    var listening by remember { mutableStateOf(false) }
+    val speechController = remember(context) {
+        SpeechInputController(
+            context = context,
+            onText = { draft = it },
+            onListeningChanged = { listening = it },
+            onError = { error = it }
+        )
+    }
+    DisposableEffect(speechController) {
+        onDispose { speechController.destroy() }
+    }
+    val microphonePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) speechController.start()
+        else error = "Microphone permission was not granted."
+    }
     val scope = rememberCoroutineScope()
     val conversation = remember { mutableStateListOf<ChatLine>() }
     val history = remember {
@@ -147,6 +169,13 @@ fun AssistantScreen() {
                 placeholder = { Text("Message your assistant…") },
                 maxLines = 4
             )
+            OutlinedButton(
+                enabled = !loading,
+                onClick = {
+                    if (listening) speechController.stop()
+                    else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            ) { Text(if (listening) "Stop" else "Mic") }
             Button(
                 enabled = draft.isNotBlank() && !loading,
                 onClick = {
