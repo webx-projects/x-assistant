@@ -88,11 +88,12 @@ class OmniRouteClient(
                     for (index in 0 until rawCalls.length()) {
                         val call = rawCalls.optJSONObject(index) ?: continue
                         val function = call.optJSONObject("function") ?: continue
+                        val id = call.optString("id")
                         val name = function.optString("name")
                         val arguments = function.optString("arguments")
-                        if (name.isNotBlank() && arguments.isNotBlank()) {
+                        if (id.isNotBlank() && name.isNotBlank() && arguments.isNotBlank()) {
                             add(OmniRouteToolCall(
-                                id = call.optString("id"),
+                                id = id,
                                 name = name,
                                 argumentsJson = arguments
                             ))
