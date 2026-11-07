@@ -24,6 +24,7 @@ interface AssistantRepository {
     fun observeExpenseTotal(startInclusive: Long, endExclusive: Long, currencyCode: String = "INR"): Flow<Long>
     fun observeIncomeTotal(startInclusive: Long, endExclusive: Long, currencyCode: String = "INR"): Flow<Long>
     suspend fun addTransaction(transaction: MoneyTransaction)
+    suspend fun updateTransaction(transaction: MoneyTransaction)
     suspend fun deleteTransaction(id: String)
 
     fun observeReminders(): Flow<List<AssistantReminder>>
